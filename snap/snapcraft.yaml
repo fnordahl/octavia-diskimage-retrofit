@@ -7,7 +7,7 @@ summary: tool for retrofitting cloud images for use as Octavia Amphora image.
 description: |
   tool for retrofitting cloud images for use as Octavia Amphora image.
 confinement: devmode
-base: core18
+base: core20
 architectures:
   - build-on: amd64
   - build-on: i386
@@ -53,7 +53,7 @@ parts:
     plugin: dump
     source: https://opendev.org/openstack/octavia.git
     source-type: git
-    source-branch: stable/stein
+    source-branch: stable/ussuri
     override-pull: |
       snapcraftctl pull
       patch -p1 < $SNAPCRAFT_PROJECT_DIR/patch/patch-octavia-elements-amphora-agent-ureadahead.patch
@@ -67,25 +67,8 @@ parts:
     override-build: |
       find diskimage_builder/elements/ -type f -print0 | xargs -0 sed -i '1 s/^#\!.*python$/#\!\/usr\/bin\/env python3/'
       snapcraftctl build
-  fuse:
-    source: https://git.launchpad.net/ubuntu/+source/fuse
-    source-type: git
-    source-branch: ubuntu/bionic
-    plugin: autotools
-    override-build: |
-      dpkg-source --before-build .
-      autoreconf
-      snapcraftctl build
-    override-stage: |
-      snapcraftctl stage
-      chmod 0755 bin/fusermount
-    filesets:
-      exclude:
-        - -dev
-    stage:
-      - $exclude
   libguestfs:
-    after: [diskimage-builder,fuse]
+    after: [diskimage-builder]
     source: https://github.com/libguestfs/libguestfs.git
     source-type: git
     source-branch: v1.40.2
@@ -105,6 +88,7 @@ parts:
       patch -p1 < $SNAPCRAFT_PROJECT_DIR/patch/patch-libguestfs-ppc64el-cap-htm.patch
       mkdir -p /snap/$SNAPCRAFT_PROJECT_NAME
       ln -sf $SNAPCRAFT_STAGE /snap/$SNAPCRAFT_PROJECT_NAME/current
+      ./autogen.sh
       snapcraftctl build
       rm -f /snap/$SNAPCRAFT_PROJECT_NAME/current
       rmdir /snap/$SNAPCRAFT_PROJECT_NAME
@@ -117,7 +101,7 @@ parts:
       rmdir /snap/$SNAPCRAFT_PROJECT_NAME
       chmod 0644 usr/local/lib/guestfs/appliance/kernel
       snapcraftctl prime
-    configflags:
+    autotools-configure-parameters:
       - --disable-silent-rules
       - --disable-gnulib-tests
       - --with-readline
@@ -133,10 +117,10 @@ parts:
       - --disable-ruby
       - --without-libvirt
     stage-packages:
+      - fuse
       - libmagic1
       - uuid-runtime
       - libjansson4
-      - libicu60
       - libxml2
       - ipxe-qemu-256k-compat-efi-roms
       - on amd64:
@@ -154,6 +138,7 @@ parts:
       - qemu-utils
       - libslang2
     build-packages:
+      - pkg-config
       - bison
       - flex
       - gperf
@@ -170,7 +155,6 @@ parts:
       - libhivex-ocaml-dev
       - perl-doc
       - bsdmainutils
-      - btrfs-tools
       - cryptsetup
       - dash
       - genisoimage
@@ -190,7 +174,6 @@ parts:
       - libpcre3
       - libsystemd0
       - libsystemd-dev
-      - libtirpc1
       - libyara3
       - mtools
       - nilfs-tools
@@ -229,7 +212,6 @@ parts:
       - lvm2
       - lzop
       - mdadm
-      - module-init-tools
       - parted
       - pciutils
       - procps
